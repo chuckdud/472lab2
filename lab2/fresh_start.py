@@ -1,14 +1,10 @@
 import random
-
 import numpy as np
 from copy import copy
 
 NONE, X, O = '.', 'X', 'O'
 MT, P1, P2 = 0, 1, 2
 POTENTIAL = 3
-
-deepest = 0
-
 
 def other_player(turn):
     return P2 if turn == P1 else P1
@@ -29,22 +25,24 @@ class State:
     def __copy__(self):
         return type(self)(copy(self.board), self.to_move)
 
-    # return 0 if not terminal
-    # return P1 if P1 wins
-    # return P2 if P2 wins
+    # return:
+    #   -1 if not terminal
+    #   0 if terminal and tie
+    #   P1 if terminal and P1 wins
+    #   P2 if terminal and P2 wins
     def terminal_test(self):
-        P1_score, P2_score = 0, 0
+        if len(find_all_actions(self)) != 0 or len(find_all_actions(result(self.__copy__(), None))) != 0:
+            return -1
+        score = 0
         for i in range(8):
             for j in range(8):
-                if self.board[i][j] == MT:
-                    return 0
-                elif self.board[i][j] == P1:
-                    P1_score += 1
+                if self.board[i][j] == P1:
+                    score += 1
                 elif self.board[i][j] == P2:
-                    P2_score += 1
-        if P1_score > P2_score:
+                    score -= 1
+        if score > 0:
             return P1
-        elif P2_score > P1_score:
+        elif score < 0:
             return P2
         else:
             return 0
@@ -60,21 +58,13 @@ def init_board():
 
 
 def alt_init_board():
-    # board = np.array([[P2, P1, MT, MT, MT, MT, MT, MT],
-    #                   [MT, P2, MT, MT, MT, MT, MT, MT],
-    #                   [MT, P1, P2, P1, MT, MT, MT, MT],
-    #                   [MT, MT, MT, P2, P1, MT, MT, MT],
-    #                   [MT, MT, MT, P1, P2, MT, MT, MT],
-    #                   [MT, MT, MT, MT, MT, MT, MT, MT],
-    #                   [MT, MT, MT, MT, MT, MT, MT, MT],
-    #                   [MT, MT, MT, MT, MT, MT, MT, MT]])
-    board = np.array([[MT, MT, MT, MT, MT, MT, MT, MT],
-                      [MT, MT, MT, P2, MT, MT, MT, MT],
-                      [MT, P1, P2, MT, MT, MT, MT, MT],
-                      [MT, MT, MT, MT, MT, MT, MT, MT],
-                      [MT, MT, MT, MT, MT, MT, MT, MT],
-                      [MT, MT, MT, MT, MT, MT, MT, MT],
-                      [MT, MT, MT, MT, MT, MT, MT, MT],
+    board = np.array([[P2, P2, P2, P2, P2, P2, P2, MT],
+                      [P2, P2, P2, P2, P2, P2, P2, P2],
+                      [P2, P2, P2, P2, P2, P2, P2, P2],
+                      [P2, P2, P2, P2, P2, P2, MT, MT],
+                      [P2, P2, P2, P2, P2, P2, P1, P1],
+                      [P2, MT, MT, P2, MT, P2, MT, MT],
+                      [P2, MT, P2, MT, P1, MT, P2, MT],
                       [MT, MT, MT, MT, MT, MT, MT, MT]])
     return board
 
@@ -317,15 +307,17 @@ def result(state, action):
 
 
 def random_play(state):
-    moves = find_all_actions(state)
-    x = random.randint(0, len(moves) - 1)
-    return moves[x]
+    actions = find_all_actions(state)
+    x = random.randint(0, len(actions) - 1)
+    return actions[x]
 
 
 def user_play(state):
+    print("Enter an x and y coordinate separated by a space:")
     x, y = map(int, input().split())
     valid, flippers = valid_action(state, x, y)
     while not valid:
+        print("Invalid move. Try again:")
         x, y = map(int, input().split())
         valid, flippers = valid_action(state, x, y)
     return Action(x, y, flippers)
@@ -340,10 +332,7 @@ def computer_play(state):
 def alpha_beta_search(state):
 
     def max_value(state, alpha, beta, depth):
-        global deepest
-        if depth > deepest:
-            deepest = depth
-        if state.terminal_test() != 0 or cutoff_test(depth):
+        if state.terminal_test() >= 0 or cutoff_test(depth):
             return eval_fn(state)
         v = -np.inf
         for action in find_all_actions(state):
@@ -354,11 +343,10 @@ def alpha_beta_search(state):
         return v
 
     def min_value(state, alpha, beta, depth):
-        global deepest
-        if depth > deepest:
-            deepest = depth
-        if state.terminal_test() != 0 or cutoff_test(depth):
+        if cutoff_test(depth):
             return eval_fn(state)
+        elif state.terminal_test() >= 0:
+            return utility(state)
         v = np.inf
         for action in find_all_actions(state):
             v = min(v, max_value(result(state, action), alpha, beta, depth + 1))
@@ -378,7 +366,7 @@ def alpha_beta_search(state):
     best_action = None
     actions = find_all_actions(state)
     for a in actions:
-        v = min_value(result(copy(state), a), best_score, beta, 1)
+        v = min_value(result(state.__copy__(), a), best_score, beta, 1)
         if v > best_score:
             best_score = v
             best_action = a
@@ -391,7 +379,7 @@ def alpha_beta_search(state):
 # TODO
 def eval_fn(state):
     actions = find_all_actions(state)
-    alt_state = copy(state)
+    alt_state = state.__copy__()
     alt_state.to_move = other_player(state.to_move)
     alt_actions = find_all_actions(alt_state)
     return len(actions) - len(alt_actions)
@@ -409,35 +397,47 @@ def utility(state):
 def take_action(state):
     actions = find_all_actions(state)
     if len(actions) == 0:
+        if state.to_move == P1:
+            print("User cannot play.")
+        else:
+            print("CPU cannot play.")
         return result(state, None)
-    print("Player " + str(state.to_move) + " turn:")
-    print_with_actions(state.board, actions)
-
+    # print("Player " + str(state.to_move) + " turn:")
+    # print_with_actions(state.board, actions)
     if state.to_move == P1:
-        action = user_play(state)
+        print("USER TURN")
+        # action = user_play(state)
+        action = random_play(state)
     else:
+        print("CPU TURN")
         action = computer_play(state)
-
-    return result(state, action)
+        print("CPU plays " + str(action.x) + " " + str(action.y))
+    print("Result:")
+    ret = result(state, action)
+    print_with_actions(ret.board, find_all_actions(ret))
+    return ret
 
 
 def play():
     state = State(init_board(), P1)
-    winner = 0
+    print_board(state.board)
     while True:
         state = take_action(state)
-        if state.terminal_test() != 0:
+        # print("Result:")
+        # print_with_actions(state.board, actions)
+        winner = state.terminal_test()
+        if winner >= 0:
             break
     print_board(state.board)
     if winner == P1:
         print("User wins!")
+    elif winner == P2:
+        print("CPU wins!")
     else:
-        print("CPU wins")
+        print("Tie!")
 
 
 max_depth = int(input("Please enter a maximum depth for alpha-beta cutoff search. Enter -1 for maximum depth\n"))
 if max_depth < 0:
     max_depth = np.inf
 play()
-print(deepest)
-# test()
