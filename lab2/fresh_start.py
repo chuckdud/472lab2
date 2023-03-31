@@ -58,14 +58,22 @@ def init_board():
 
 
 def alt_init_board():
-    board = np.array([[P2, P2, P2, P2, P2, P2, P2, MT],
+    # board = np.array([[P2, P2, P2, P2, P2, P2, P2, MT],
+    #                   [P2, P2, P2, P2, P2, P2, P2, P2],
+    #                   [P2, P2, P2, P2, P2, P2, P2, P2],
+    #                   [P2, P2, P2, P2, P2, P2, MT, MT],
+    #                   [P2, P2, P2, P2, P2, P2, P1, P1],
+    #                   [P2, MT, MT, P2, MT, P2, MT, MT],
+    #                   [P2, MT, P2, MT, P1, MT, P2, MT],
+    #                   [MT, MT, MT, MT, MT, MT, MT, MT]])
+    board = np.array([[P2, P2, P2, P2, P2, P2, P2, P2],
                       [P2, P2, P2, P2, P2, P2, P2, P2],
-                      [P2, P2, P2, P2, P2, P2, P2, P2],
-                      [P2, P2, P2, P2, P2, P2, MT, MT],
-                      [P2, P2, P2, P2, P2, P2, P1, P1],
-                      [P2, MT, MT, P2, MT, P2, MT, MT],
-                      [P2, MT, P2, MT, P1, MT, P2, MT],
-                      [MT, MT, MT, MT, MT, MT, MT, MT]])
+                      [P2, P1, P2, P2, P2, P2, P2, P2],
+                      [P2, P2, P1, P2, P2, P2, P2, P2],
+                      [P2, P2, P1, P1, P2, P2, P2, P2],
+                      [P2, P2, P1, P2, P2, P2, P2, MT],
+                      [P2, P1, P1, P1, P1, P1, P1, MT],
+                      [P1, P1, P1, P2, P2, P2, MT, MT]])
     return board
 
 
@@ -297,13 +305,14 @@ def flip(state, flippers):
 
 
 def result(state, action):
+    ret = state.__copy__()
     if action is None:
-        state.to_move = other_player(state.to_move)
-        return state
-    state.board[action.y][action.x] = state.to_move
-    state = flip(state, action.flippers)
-    state.to_move = other_player(state.to_move)
-    return state
+        ret.to_move = other_player(ret.to_move)
+        return ret
+    ret.board[action.y][action.x] = ret.to_move
+    ret = flip(ret, action.flippers)
+    ret.to_move = other_player(ret.to_move)
+    return ret
 
 
 def random_play(state):
@@ -324,6 +333,8 @@ def user_play(state):
 
 
 def computer_play(state):
+    if len(find_all_actions(state)) == 1:
+        return find_all_actions(state)[0]
     action = alpha_beta_search(state)
     return action
 
@@ -332,8 +343,12 @@ def computer_play(state):
 def alpha_beta_search(state):
 
     def max_value(state, alpha, beta, depth):
-        if state.terminal_test() >= 0 or cutoff_test(depth):
-            return eval_fn(state)
+        if cutoff_test(depth):
+            return eval_fn_2(state)
+        elif state.terminal_test() >= 0:
+            return utility(state)
+        elif len(find_all_actions(state)) == 0:
+            return 0
         v = -np.inf
         for action in find_all_actions(state):
             v = max(v, min_value(result(state, action), alpha, beta, depth + 1))
@@ -344,9 +359,11 @@ def alpha_beta_search(state):
 
     def min_value(state, alpha, beta, depth):
         if cutoff_test(depth):
-            return eval_fn(state)
+            return eval_fn_2(state)
         elif state.terminal_test() >= 0:
             return utility(state)
+        elif len(find_all_actions(state)) == 0:
+            return 0
         v = np.inf
         for action in find_all_actions(state):
             v = min(v, max_value(result(state, action), alpha, beta, depth + 1))
@@ -361,12 +378,72 @@ def alpha_beta_search(state):
         else:
             return True
 
+    def eval_fn_1(state):
+        score = 0
+        for row in state.board:
+            for x in row:
+                if x == P1:
+                    score -= 1
+                if x == P2:
+                    score += 1
+        return score
+
+    def eval_fn_2(state):
+        score = 0
+        if state.board[0][0] == P2:
+            score += 5
+        elif state.board[0][0] == P1:
+            score -= 5
+        if state.board[0][7] == P2:
+            score += 5
+        elif state.board[0][7] == P1:
+            score -= 5
+        if state.board[7][0] == P2:
+            score += 5
+        elif state.board[7][0] == P1:
+            score -= 5
+        if state.board[7][7] == P2:
+            score += 5
+        elif state.board[7][7] == P1:
+            score -= 5
+
+        for x in state.board[0][:]:
+            if x == P2:
+                score += 1
+            elif x == P1:
+                score -= 1
+        for x in state.board[7][:]:
+            if x == P2:
+                score += 1
+            elif x == P1:
+                score -= 1
+        for x in state.board[:][0]:
+            if x == P2:
+                score += 1
+            elif x == P1:
+                score -= 1
+        for x in state.board[:][7]:
+            if x == P2:
+                score += 1
+            elif x == P1:
+                score -= 1
+
+        return score
+
+    def utility(state):
+        if state.terminal_test() == P2:
+            return 1
+        elif state.terminal_test() == P1:
+            return -1
+        else:
+            return 0
+
     best_score = -np.inf
     beta = np.inf
     best_action = None
     actions = find_all_actions(state)
     for a in actions:
-        v = min_value(result(state.__copy__(), a), best_score, beta, 1)
+        v = min_value(result(state, a), best_score, beta, 1)
         if v > best_score:
             best_score = v
             best_action = a
@@ -374,24 +451,6 @@ def alpha_beta_search(state):
         print("ERROR in alphabeta generating move")
         exit()
     return best_action
-
-
-# TODO
-def eval_fn(state):
-    actions = find_all_actions(state)
-    alt_state = state.__copy__()
-    alt_state.to_move = other_player(state.to_move)
-    alt_actions = find_all_actions(alt_state)
-    return len(actions) - len(alt_actions)
-
-
-def utility(state):
-    if state.terminal_test() == state.to_move:
-        return 1
-    elif state.terminal_test() == other_player(state.to_move):
-        return -1
-    else:
-        return 0
 
 
 def take_action(state):
@@ -402,12 +461,11 @@ def take_action(state):
         else:
             print("CPU cannot play.")
         return result(state, None)
-    # print("Player " + str(state.to_move) + " turn:")
-    # print_with_actions(state.board, actions)
     if state.to_move == P1:
         print("USER TURN")
         # action = user_play(state)
         action = random_play(state)
+        print("USER plays " + str(action.x) + " " + str(action.y))
     else:
         print("CPU TURN")
         action = computer_play(state)
@@ -420,6 +478,27 @@ def take_action(state):
 
 def play():
     state = State(init_board(), P1)
+    print_board(state.board)
+    while True:
+        state = take_action(state)
+        print("Result:")
+        # print_with_actions(state.board, actions)
+        winner = state.terminal_test()
+        if winner >= 0:
+            break
+    if winner == P1:
+        print("User wins!")
+    elif winner == P2:
+        print("CPU wins!")
+    else:
+        print("Tie!")
+    print("Final board:")
+    print_board(state.board)
+    return winner
+
+
+def test():
+    state = State(alt_init_board(), P2)
     print_board(state.board)
     while True:
         state = take_action(state)
@@ -437,7 +516,23 @@ def play():
         print("Tie!")
 
 
+def batch():
+    iters = int(input("Please enter a number of times play against random opponent\n"))
+    cpu_wins = 0
+    user_wins = 0
+    for i in range(iters):
+        winner = play()
+        if winner == P1:
+            user_wins += 1
+        elif winner == P2:
+            cpu_wins += 1
+    print("USER won " + str(user_wins))
+    print("CPU won " + str(cpu_wins))
+
+
 max_depth = int(input("Please enter a maximum depth for alpha-beta cutoff search. Enter -1 for maximum depth\n"))
 if max_depth < 0:
     max_depth = np.inf
-play()
+# play()
+# test()
+batch()
