@@ -481,7 +481,9 @@ def take_action(state):
             print("P1 cannot play.")
         else:
             print("P2 cannot play.")
-        return result(state, None)
+        ret = result(state, None)
+        print_with_actions(ret.board, find_all_actions(ret))
+        return ret
     # P1 takes action according to user selection
     if state.to_move == P1:
         print("P1 TURN")
