@@ -474,8 +474,8 @@ def take_action(state):
         return result(state, None)
     if state.to_move == P1:
         print("USER TURN")
-        # action = user_play(state)
-        action = random_play(state)
+        action = user_play(state)
+        # action = random_play(state)
         print("USER plays " + str(action.x) + " " + str(action.y))
     else:
         print("CPU TURN")
@@ -492,8 +492,6 @@ def play():
     print_board(state.board)
     while True:
         state = take_action(state)
-        print("Result:")
-        # print_with_actions(state.board, actions)
         winner = state.terminal_test()
         if winner >= 0:
             break
