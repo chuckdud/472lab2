@@ -48,6 +48,7 @@ class State:
             return 0
 
 
+# board initialization
 def init_board():
     board = np.zeros((8, 8))
     board[3][3] = P2
@@ -57,6 +58,7 @@ def init_board():
     return board
 
 
+# alternate board initialization for testing
 def alt_init_board():
     # board = np.array([[P2, P2, P2, P2, P2, P2, P2, MT],
     #                   [P2, P2, P2, P2, P2, P2, P2, P2],
@@ -77,6 +79,7 @@ def alt_init_board():
     return board
 
 
+# print game board
 def print_board(board):
     ret = "  0 1 2 3 4 5 6 7\n"
     for i in range(8):
@@ -96,6 +99,7 @@ def print_board(board):
     print(ret)
 
 
+# print game board with '?' in spaces where a player can make a move
 def print_with_actions(board, actions):
     to_print = np.copy(board)
     for m in actions:
@@ -119,9 +123,9 @@ def print_with_actions(board, actions):
         ret += "\n"
     ret += 'y'
     print(ret)
-    # print("Enter x and y coordinate separated by a space")
 
 
+# check if placing a stone at (x, y) is a valid move according to rules of othello
 def valid_action(state, x, y):
     flippers = []
     if x < 0 or y < 0 or x > 7 or y > 7:
@@ -286,6 +290,7 @@ def valid_action(state, x, y):
     return (True, flippers) if len(flippers) > 0 else (False, flippers)
 
 
+# find all valid actions given a current state
 def find_all_actions(state):
     actions = []
     for y in range(8):
@@ -296,6 +301,7 @@ def find_all_actions(state):
     return actions
 
 
+# flip all captured pieces when applying an action
 def flip(state, flippers):
     for piece in flippers:
         y = piece[0]
@@ -304,6 +310,8 @@ def flip(state, flippers):
     return state
 
 
+# apply an action to current state
+# if the action is None forfeit turn to other player
 def result(state, action):
     ret = state.__copy__()
     if action is None:
@@ -315,12 +323,14 @@ def result(state, action):
     return ret
 
 
+# select a random valid action
 def random_play(state):
     actions = find_all_actions(state)
     x = random.randint(0, len(actions) - 1)
     return actions[x]
 
 
+# allow user to enter an action
 def user_play(state):
     print("Enter an x and y coordinate separated by a space:")
     x, y = map(int, input().split())
@@ -332,6 +342,7 @@ def user_play(state):
     return Action(x, y, flippers)
 
 
+# CPU play using alpha-beta-cutoff search
 def computer_play(state):
     if len(find_all_actions(state)) == 1:
         return find_all_actions(state)[0]
@@ -339,7 +350,7 @@ def computer_play(state):
     return action
 
 
-# TODO
+# alpha-beta-cutoff search
 def alpha_beta_search(state):
 
     def max_value(state, alpha, beta, depth):
